@@ -1,0 +1,1277 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>INFO130342 机器学习</title>
+    <link href="./favicon.ico" rel="shortcut icon" type="image/x-icon" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+    </head>
+<body>
+
+<style>
+    button {
+        margin: 2px;
+        padding: 3px;
+        border: 2px solid #333333;
+        background: #EEEEEE;
+        border-radius: 5px;
+    }
+
+    div {
+        display: inline-block;
+    }
+
+    *:focus {
+        outline: none;
+        outline-color: transparent;
+    }
+    table{table-layout: fixed; }
+        table td{width: 100px; word-wrap: break-word; }
+        .navbar-brand
+{
+  font-family: "Roboto", sans-serif;
+  color:grey;
+  font-size: 30px;
+  margin: 0px;
+}
+.navbar {
+	background-color: #183C84;
+  white-space:nowrap;
+	}
+</style>
+
+<nav class="navbar navbar-default navbar-expand-md  navbar-dark">
+    <a href="https://able558512.github.io/MLFudan.github.io/">
+    <img src="./images/logo.png" style="height:40px; float: left; margin-left: 0px; margin-right: 10px;"></a>
+    <a class="navbar-brand" href="https://able558512.github.io/MLFudan.github.io/" style="margin-right: 200px;">INFO130342 机器学习</a>
+    
+<div class="collapse navbar-collapse" id="navbarTogglerDemo02">
+  <ul class="navbar-nav  mt-2 mt-md-0 ">
+    <li class="nav-item ">
+      <a class="nav-link" href="./index.html"><font size='4'>首页</font></a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="./videos.html"><font size='4'>课程视频</font></a>
+    </li>
+    <li class="nav-item active">
+      <a class="nav-link" href="./playground.html"><font size='4'>互动界面</font></a>
+    </li>
+  </ul>
+</div>
+      
+      
+   </nav>
+<span style="font-size:48px;color:#555555">Classifier Playground</span>
+<br><br>
+
+<div style="width:1150px;border:solid 1px black;padding: 5px">
+<canvas id="myCanvas" width="500" height="500" style="border: 3px solid black"></canvas>
+<canvas id="myCanvas2" width="600" height="500" ></canvas>
+</div>
+
+<br><br>
+
+<button onclick="NBclassify()">(Quadratic) Naive Bayes</button>
+&#160&#160&#160
+<button onclick="LOGclassify()">Linear Logistic Regression</button>
+&#160&#160&#160
+<div style="border:1px solid #BBBBBB;background-color:#EEEEEE">
+<button onclick="TREEclassify()">Tree classify</button>
+<button onclick="prune()" id="pbutton">Prune tree</button>
+</div>
+&#160&#160&#160
+<div style="border:1px solid #BBBBBB;padding-right:4px;background-color:#EEEEEE">
+<button onclick="KNNclassify()">KNN classify</button>
+<input type="range" id="Kparm" oninput="updateK(this.value)" min="1" max="5" value="1" step="1">
+<span id="Kparm2">k=1</span>
+</div>
+&#160&#160&#160
+<div style="border:1px solid #BBBBBB;padding-right:4px;background-color:#EEEEEE">
+<button onclick="SVMclassify()">Linear SVM classify</button>
+<input type="range" id="Cparm" oninput="updateC(this.value)" min="-2" max="4" value="2" step="0.1">
+<span id="Cparm2">C=100</span>
+</div>
+<br>
+
+<button onclick="hide()" style="border:0px;background:#BBBBBB">Hide classifier</button>&#160&#160&#160
+<button onclick="reset()" style="border:0px;background:#BBBBBB">Clear points</button>&#160&#160&#160
+<button onclick="toggleExample()" style="border:0px;background:#BBBBBB">Examples</button>&#160&#160&#160
+<button onclick="document.getElementById('nn').submit()" style="border:0px;background:#BBBBBB">Neural network playground</button>
+
+<br><br>
+机器学习经典分类器在线实验。
+<br><br>
+版权声明：整合自cdeotte open-source program。
+<br><br>
+
+<div id='debug' width='500' height='500'></div>
+<div id='debug2' width='500' height='500'></div>
+
+<div style="display:none">
+<form action="neuralnetwork.html" id="nn" target="_blank"></form>
+</div>
+
+<script>
+
+var debug = false; debug2 = false;
+var example = false;
+var reverse = false;
+var canvas, canvas2;
+var ctx, ctx2;
+var WIDTH = 500;
+var WIDTH2 = 600;
+var HEIGHT = 500;
+var HEIGHT2 = 600;
+var dataPoints = [];
+var commandkey = false;
+var shiftkey = false;
+var dkey = false;
+var classifyOn = false;
+var showOn = true;
+// 1: Naive Bayes, 2: Decision Tree, 3: Support Vector Machine
+// 4: K-NN, 5: Logistic Regression, 0: unset
+var classifyType = 0;
+
+// below used by SVM
+var sv = 0;
+var imgSVM = new Image();
+imgSVM.src = "../images/SVM.png";
+// below used by TREE
+var clickedNode = 0;
+var xA, xB, yA, yB;
+var rules =[], rules2 =[], cp =[], cp2 =[];
+var imgTree1 = new Image();
+imgTree1.src = "../images/Tree1.png";
+var imgTree2 = new Image();
+imgTree2.src = "../images/Tree2.png";
+var imgTree3 = new Image();
+imgTree3.src = "../images/Tree3.png";
+// used by NB
+var mean11, mean21, var11, var21;
+var imgNB = new Image();
+imgNB.src = "../images/NB.png";
+// used by LOG
+var normw = 0; unitw = [0,0], unitb = 0; //used by SVM also
+var imgLOG = new Image();
+imgLOG.src = "../images/LOG.png";
+// used by KNN
+var Xclick = -1;
+var Yclick = -1;
+var imgKNN = new Image();
+imgKNN.src = "../images/KNN.png";
+
+// below used by all
+var step = 100;
+var inc = 1/step;
+var clss = [];
+for (var i = 0; i < step; i++){
+    clss[i] = [];
+    for (var j = 0; j < step; j++)
+        clss[i][j] = 0;
+}
+
+window.onload = function() {
+    // initialize canvas 1
+	canvas = document.getElementById("myCanvas");
+	ctx = canvas.getContext("2d");
+	canvas.onmousedown = myDown;
+    document.addEventListener("keydown", keyDown, false);
+    document.addEventListener("keyup", keyUp, false);
+    canvas.addEventListener("contextmenu",function(e){e.preventDefault();return false;},false);
+    // initialize canvas 2
+	canvas2 = document.getElementById("myCanvas2");
+	ctx2 = canvas2.getContext("2d");
+	canvas2.onmousedown = myDown2;
+    // continually redraw canvases
+    setInterval(draw, 25);
+    window.addEventListener('touchstart', function onFirstTouch() {
+        isMobile = true;
+        window.removeEventListener('touchstart', onFirstTouch, false);
+    });
+}
+
+function outline(){
+    // used by TREE classify
+    ctx.strokeStyle = '#00FF00';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(xA,yA,xB-xA,yB-yA);
+}
+
+function square(point) {
+    // used by all to draw decision regions
+	if (point[2]>0) ctx.fillStyle = '#0000AA';
+	else if (point[2] == 0) ctx.fillStyle = '#000000';
+	else ctx.fillStyle = '#AA0000';
+	ctx.beginPath()
+    var wA = 1, wB = 2;
+    if (classifyType == 5) wB = Math.abs(point[2]/0.25);
+    if (classifyType == 3 && (point[2]==2 || point[2]==-2)) wB = 1;
+    if (point[2]==0) {wA = 2; wB = 4;}
+    ctx.fillRect(WIDTH*point[0]-wA, HEIGHT*(1-point[1])-wA, wB, wB);
+    if (classifyType == 4 && point[2]==0){
+        ctx2.fillStyle = '#555555';
+        ctx2.fillRect(400*point[0]+49, 400*(1-point[1])+49, 2, 2);
+    }
+	ctx.closePath();
+	ctx.fill();
+}
+function square2(point,ys,c){
+    // used by LOG classify and SVM
+	ctx2.beginPath();
+    if (c==0) ctx2.fillStyle = '#999999';
+    else if (c==-1) ctx2.fillStyle = '#FF0000';
+    else ctx2.fillStyle = '#0000FF';
+    ctx2.fillRect(50 + point[0],point[1] + ys,2,2);
+	ctx2.closePath();
+	ctx2.fill();
+}
+
+function circ(point) {
+    // used by all to draw points
+	if (point[2] == 0) ctx.fillStyle = '#FF0000';
+	else ctx.fillStyle = '#0000FF';
+	ctx.beginPath();
+	ctx.arc(WIDTH*point[0],HEIGHT*(1-point[1]),5,0,2*Math.PI);
+	ctx.closePath();
+	ctx.fill();
+}
+
+function circ2(point,ys) {
+    // used by LOG classify and SVM
+	if (point[1] == 0) ctx2.fillStyle = '#FF0000';
+    else if (point[1] == -1) ctx2.fillStyle = '#000000';
+	else ctx2.fillStyle = '#0000FF';
+	ctx2.beginPath();
+    var y = 25;
+    if (point[1] == 0) y = 165;
+    else if (point[1] == -1) y = 95;
+	ctx2.arc(50 + WIDTH*point[0],y + ys,5,0,2*Math.PI);
+	ctx2.closePath();
+	ctx2.fill();
+}
+
+function circ3(point,c) {
+    // used by all to draw points
+    var WIDTH3 = 400;
+    var HEIGHT3 = 400;
+    var xs = 50;
+    var ys = 50;
+    var w = 5;
+	if (point[2] == 0) ctx2.fillStyle = '#FF0000';
+	else if (point[2] == 1) ctx2.fillStyle = '#0000FF';
+    else ctx2.fillStyle = '#00FF00';
+    if (point[2] == -2) {
+        ctx2.strokeStyle = '#00FF00';
+        ctx2.lineWidth = 2;
+        ctx2.strokeRect(WIDTH3*point[0]+xs-7,HEIGHT3*(1-point[1])+ys-7,14,14);
+    }
+    else{
+        ctx2.beginPath();
+        ctx2.arc(WIDTH3*point[0]+xs,HEIGHT3*(1-point[1])+ys,w,0,2*Math.PI);
+        ctx2.closePath();
+        ctx2.fill();
+    }
+}
+
+function clear() {
+	ctx.clearRect(0,0,WIDTH,HEIGHT);
+	ctx2.clearRect(0,0,WIDTH2,HEIGHT2);
+    if (classifyOn){
+        ctx2.font="24px Arial"
+        ctx2.fillStyle="#999999";
+        if (classifyType==2) ctx2.fillText("An unknown (x ,x ) is predicted by a decision tree:",30,30);
+        else if (classifyType==4) ctx2.fillText("An unknown (x ,x ) is predicted by its k neighbors:",30,30);
+        else ctx2.fillText("An unknown (x ,x ) is predicted to be:",30,30);
+        ctx2.font="14px Arial"
+        ctx2.fillText("1    2",189,35);
+    }
+    else if (example) showExample();
+    else if (isMobile) showMobile();
+    if (dataPoints.length==0){
+        ctx.font="24px Arial";
+        ctx.fillStyle="#BBBBBB";
+        if (isMobile){
+            ctx.fillText("Click red and blue points here.",20,100);
+        }
+        else{
+            ctx.fillText("Left click here for red points.",20,70);
+            ctx.fillText("Right click here for blue points.",20,100);
+        }
+        ctx.fillText("Then click a button below.",20,130);
+        ctx.fillText("A machine learning algorithm will learn",20,215);
+        ctx.fillText("your pattern and display it.",20,245);
+        ctx.fillText("Start with 1 red and 1 blue point.",20,315);
+        ctx.fillText("Have fun!",20,400);
+        if (!isMobile){
+            ctx.font="16px Arial";
+            ctx.fillText("(or shift-key + left click for blue)",20,150);
+            ctx.fillText("(d-key + click removes a point)",20,335);
+        }
+    }
+}
+
+function showMobile(){
+    ctx2.clearRect(0,0,WIDTH2,HEIGHT2);
+    var h = 0;
+    ctx2.fillStyle="#999999";
+    ctx2.font="20px Arial";
+    ctx2.fillText("Clicking",30,85+h);
+    ctx2.fillText("creates a",30,105+h);
+    ctx2.lineWidth = 2;
+    reverse? ctx2.strokeStyle = '#999999' : ctx2.strokeStyle = '#444444';
+    reverse? ctx2.lineWidth = 2 : ctx2.lineWidth = 4;
+    ctx2.strokeRect(30,125+h,100,50);
+    reverse? ctx2.strokeStyle = '#444444' : ctx2.strokeStyle = '#999999';
+    reverse? ctx2.lineWidth = 4 : ctx2.lineWidth = 2;
+    ctx2.strokeRect(30,195+h,100,50);
+    ctx2.font="36px Arial";
+    ctx2.fillText("Red",45,163+h);
+    ctx2.fillText("Blue",45,233+h);
+    ctx2.font="20px Arial";
+    ctx2.fillText("(choose one)",30,275+h);
+}
+
+function showExample(){
+    ctx2.clearRect(0,0,WIDTH2,HEIGHT2);
+    if (!example) return;
+    var h = 0;
+    ctx2.font="16px Times New Roman";
+    ctx2.fillStyle="#999999";
+    ctx2.fillText("Click a number then click the classifier buttons below.",30, 70+h);
+    ctx2.font="24px Arial";
+    ctx2.fillText("Examples:",30,105+h);
+    ctx2.lineWidth = 2;
+    ctx2.strokeStyle = '#999999';
+    ctx2.strokeRect(30,125+h,100,100);
+    ctx2.strokeRect(30,245+h,100,100);
+    ctx2.strokeRect(30,365+h,100,100);
+    ctx2.font="48px Arial";
+    ctx2.fillText("1",65,190+h);
+    ctx2.fillText("2",70,310+h);
+    ctx2.fillText("3",70,430+h);
+    ctx2.font="16px Times New Roman";
+    ctx2.fillStyle="#999999";
+    ctx2.fillText("This example illustrates overfitting. Bayes, logistic, and svm",150,145+h);
+    ctx2.fillText("detect the general pattern but tree and kNN overfit. You can",150,165+h);
+    ctx2.fillText("improve tree and kNN by adjusting their hyperparameters.",150,185+h);
+    ctx2.fillText("This example illustrates underfitting. Logistic and svm",150,265+h);
+    ctx2.fillText("fail to model the curved boundary since they are linear.",150,285+h);
+    ctx2.fillText("The other methods are more flexible and do well.",150,305+h);
+    ctx2.fillText("This example illustrates the effect of svm's C hyperparameter.",150,385+h);
+    ctx2.fillText("After clicking svm, adjust C and watch the boundary change.",150,405+h);
+    ctx2.fillText("A small C generalizes. A large C prioritizes separation.",150,425+h);
+}
+
+function toggleExample(){
+    example = !example;
+    showExample();
+    classifyOn = false;
+}
+
+function draw() {
+    if (showOn){
+        clear();
+        // draw points
+        for (var i = 0; i < dataPoints.length; i++) circ(dataPoints[i]);
+        if (classifyOn){
+            // draw decision regions
+            for (var i = 0; i < step; i++)
+                for (var j = 0; j < step; j++){
+                    square([inc/2+j*inc, inc/2+i*inc, clss[i][j]]);
+                    if (i<step-1 && clss[i][j]*clss[i+1][j]<0) square([inc/2+j*inc, (i+1)*inc, 0]);
+                    if (i>0 && clss[i][j]*clss[i-1][j]<0) square([inc/2+j*inc, i*inc, 0]);
+                    if (j<step-1 && clss[i][j]*clss[i][j+1]<0) square([(j+1)*inc, inc/2+i*inc, 0]);
+                    if (j>0 && clss[i][j]*clss[i][j-1]<0) square([j*inc, inc/2+i*inc, 0]);
+                }
+            example = false;
+            if (classifyType == 1) showNB();
+            else if (classifyType == 2) showTree();
+            else if (classifyType == 3) showSVM();
+            else if (classifyType == 4) showKNN();
+            else if (classifyType == 5) showLOG();
+            showOn = false;
+        }
+    }
+}
+
+function showKNN(){
+    // used by KNN classify
+    ctx2.drawImage(imgKNN, 465, 80);
+    ctx2.strokeStyle = '#000000';
+    ctx2.lineWidth = 1;
+    ctx2.strokeRect(50,50,400,400);
+    var d, x=-1, y=-1;
+    if (Xclick!=-1 && Yclick!=-1){
+        x = (Xclick-50)/400;
+        y = 1-(Yclick-50)/400;
+        circ3([x,y,-1]);
+    }
+    var distances = [];
+    for (var k = 0; k < dataPoints.length; k++){
+        circ3(dataPoints[k]);
+        if (x!=-1 && y!=-1){
+            d = Math.pow(dataPoints[k][0]-x,2) + Math.pow(dataPoints[k][1]-y,2);
+            distances.push([d,dataPoints[k][0],dataPoints[k][1]]);
+        }
+    }
+    if (x!=-1 && y!=-1){
+        distances.sort(function(a,b){
+            return a[0]-b[0];
+        });
+        var k = 2 * document.getElementById("Kparm").value - 1;
+        if (k > dataPoints.length) k = dataPoints.length;
+        for (var j = 0; j<k; j++)
+            circ3([distances[j][1], distances[j][2], -2]);
+    }
+    /*
+    ctx2.fillStyle="#EEEEEE";
+    ctx2.fillRect(270,24,175,21);
+    ctx2.fillText("K Nearest Neighbors",275,40);
+    */
+    ctx2.font="18px Arial";
+    ctx2.fillStyle="#999999";
+    ctx2.fillText("Click anywhere above to see k neighbors",50,475);
+}
+
+function showNB(){
+    // used by NB classify
+    var max1 = 1/(Math.sqrt(2*Math.PI*var11));
+    var max2 = 1/(Math.sqrt(2*Math.PI*var21));
+    var max;
+    max1 > max2 ? max = max1 : max = max2;
+    for (var k = 0; k < WIDTH; k++){
+        f = (1/max) * (1/(Math.sqrt(2*Math.PI*var11)) * Math.exp(- Math.pow(k/WIDTH-mean11,2)/2/var11));
+        square2([k,(1-f)*140+25],275,-1);
+    }
+    for (var k = 0; k < WIDTH; k++){
+        f = (1/max) * (1/(Math.sqrt(2*Math.PI*var21)) * Math.exp(- Math.pow(k/WIDTH-mean21,2)/2/var21));
+        square2([k,(1-f)*140+25],280,1);
+    }
+    ctx2.drawImage(imgNB, 30, 80);
+    ctx2.font="18px Arial"
+    ctx2.fillStyle="#FF0000";
+    ctx2.fillText("P(x |red)",50,475);
+    ctx2.font="14px Arial"
+    ctx2.fillText("1",76,480);
+    ctx2.font="18px Arial"
+    ctx2.fillStyle="#0000FF";
+    ctx2.fillText("P(x |blue)",480,475);
+    ctx2.font="14px Arial"
+    ctx2.fillText("1",506,480);
+}
+
+function showLOG(){
+    // display logistic regress in 1-D
+    // used by logistic regression
+    for (var k = 0; k < WIDTH; k++){
+        f = 1/(1+Math.exp(-normw*((k/WIDTH)-0.5)));
+        square2([k,(1-f)*140+25],280,0);
+    }
+    var shift = 0.5 + unitb;
+    for (var k = 0; k < dataPoints.length; k++){
+        d = unitw[0]*dataPoints[k][0] + unitw[1]*dataPoints[k][1];
+        circ2([shift + d,dataPoints[k][2]],280);
+    }
+    circ2([shift - unitb,-1],280);
+    ctx2.drawImage(imgLOG, 30, 80);
+    ctx2.font="18px Arial"
+    ctx2.fillStyle="#BBBBBB";
+    ctx2.fillText("1-D projection",50,475);
+}
+
+function showSVM(){
+    // display svm in 1-D
+    // used by SVM classify
+    ctx2.drawImage(imgSVM, 30, 80);
+    for (var k = 0; k < WIDTH; k++){
+        f = (normw/2) * ((k/WIDTH)-0.5) + 0.5;
+        if (f>1) f=1; if (f<0) f=0;
+        square2([k,(1-f)*140+25],275,0);
+    }
+    var shift = 0.5 - unitb;
+    var c = 0;
+    for (var k = 0; k < dataPoints.length; k++){
+        d = unitw[0]*dataPoints[k][0] + unitw[1]*dataPoints[k][1];
+        circ2([shift + d,dataPoints[k][2]],275);
+    }
+    circ2([shift + unitb,-1],275);
+    ctx2.font="18px Arial"
+    ctx2.fillStyle="#BBBBBB";
+    if (sv<2) sv=2;
+    ctx2.fillText(sv+" support vectors",50,475);
+}
+
+function showTree(){
+    // displays tree rules as picture in canvas2
+    // used by TREE classify
+    ctx2.drawImage(imgTree1, 30, 55);
+    ctx2.drawImage(imgTree3, 130, 140);
+    ctx2.drawImage(imgTree2, 400, 65);
+    var text, text2, text3, text4, s, h, d;
+    var lg2 = Math.log(2);
+    var rw = WIDTH2/8-4;
+    var lw = [115,40,15];
+    var ys = 135;
+    ctx2.strokeStyle = '#000000';
+    ctx2.lineWidth = 2;
+    ctx2.fillStyle = '#000000';
+    ctx2.font="12px Arial"
+    // draw outline in x1-x2-plane
+    if (clickedNode!=0) outline();
+    // draw each node
+    for (var index=1;index<33;index++) if (rules[index-1][1]!=0){
+        s=0; text2=""; text3="";
+        y = Math.floor(Math.log(index)/lg2);
+        x = index - Math.pow(2,y);
+        w = WIDTH2 / Math.pow(2,y)
+        // draw node outline
+        if (y<=3) ctx2.strokeRect( (x+0.5)*w-rw/2,y*70 +ys,rw,50);
+        else ctx2.strokeRect( (x+0.5)*w-rw/4-1,y*70 +ys,rw/2-2,50);
+        if (index==clickedNode){
+            // highlight clicked node
+            ctx2.fillStyle = '#00FF00';
+            if (y<=3) ctx2.fillRect( (x+0.5)*w-rw/2+1,y*70+1 +ys,rw-2,48);
+            else ctx2.fillRect( (x+0.5)*w-rw/4-1+1,y*70+1 +ys,rw/2-4,48);
+            ctx2.fillStyle = '#000000';
+        }
+        // write text inside node
+        text4="";
+        if (rules[index-1][4]!=-1) {
+            text="N="+(rules[index-1][2]+rules[index-1][3]);
+            text2=(rules[index-1][4]==0?"x1":"x2")+"<"+rules[index-1][5].toFixed(3);
+            text3="R="+rules[index-1][2]+",B="+rules[index-1][3];
+            if (cp2[index-1]<2) text4="cp="+cp2[index-1].toFixed(3);
+        }
+        else {
+            text=rules[index-1][0]==1?"Blue":"Red";
+            text2="R="+rules[index-1][2];
+            text3="B="+rules[index-1][3];
+            s=15;
+        }
+        ctx2.fillText(text,(x+0.5)*w-30+s,y*70+15 +ys);
+        if (text2!="") ctx2.fillText(text2,(x+0.5)*w-30+s,y*70+30 +ys);
+        if (text3!="") ctx2.fillText(text3,(x+0.5)*w-30+s,y*70+45 +ys);
+        if (text4!="") ctx2.fillText(text4,(x+0.5)*w-30+s+5,y*70+62 +ys);
+        // draw lines connecting nodes
+        s = 0;
+        if (y==3) x%2==0? s = -15:s = 15;
+        if (y==4 && cp2[Math.floor(index/2)-1]<2) x%2==0? s = -10:s = 10;
+        (y==0 || y==4)? h=20:h=30;
+        if (y==0) h = 0;
+        ctx2.beginPath();
+        ctx2.moveTo((x+0.5)*w+s,y*70 +ys);
+        ctx2.lineTo((x+0.5)*w+s,y*70-h +ys);
+        if (h!=10){
+            x%2==0? d = 1:d = -1;
+            ctx2.lineTo((x+0.5)*w+s+d*lw[y-1],y*70-h +ys);
+        }
+        ctx2.stroke();
+    }
+    ctx2.font="18px Arial"
+    ctx2.fillStyle="#BBBBBB";
+    ctx2.fillText("Click a node to highlight corresponding region and/or prune tree.",50,490);
+    if (clickedNode!=0 && rules[clickedNode-1][4]!=-1) document.getElementById("pbutton").style.background = "#77FF77";
+    else document.getElementById("pbutton").style.background = "#EEEEEE";
+}
+
+function NBclassify() {
+    if (dataPoints.length==0) {alert("Click points then classify"); return;}
+    var sumXs = [0, 0, 0, 0];
+    var numXs = [0, 0];
+    //Calculate mean for c1x1, c1x2, c2x1, c2x2
+	for (var j = 0; j < dataPoints.length; j++) {
+		if (dataPoints[j][2] == 0) {
+			sumXs[0] += dataPoints[j][0];
+            sumXs[1] += dataPoints[j][1];
+            numXs[0] += 1;
+		}
+        else {
+            sumXs[2] += dataPoints[j][0];
+            sumXs[3] += dataPoints[j][1];
+            numXs[1] += 1;
+        }
+	}
+    mean11 = sumXs[0]/numXs[0];
+    var mean12 = sumXs[1]/numXs[0];
+    mean21 = sumXs[2]/numXs[1];
+    var mean22 = sumXs[3]/numXs[1];
+    sumXs = [0, 0, 0, 0];
+    //Calculate variance for c1x1, c1x2, c2x1, c2x2
+	for (var j = 0; j < dataPoints.length; j++) {
+		if (dataPoints[j][2] == 0) {
+			sumXs[0] += Math.pow(mean11 - dataPoints[j][0],2);
+            sumXs[1] += Math.pow(mean12 - dataPoints[j][1],2);
+		}
+        else {
+            sumXs[2] += Math.pow(mean21 - dataPoints[j][0],2);
+            sumXs[3] += Math.pow(mean22 - dataPoints[j][1],2);
+        }
+	}
+    var11 = sumXs[0]/(numXs[0]-1);
+    var var12 = sumXs[1]/(numXs[0]-1);
+    var21 = sumXs[2]/(numXs[1]-1);
+    var var22 = sumXs[3]/(numXs[1]-1);
+    //Fix problem cases
+    if (numXs[0]==0){
+        mean11 = -10;
+        mean12 = -10;
+        var11 = 0.005;
+        var12 = 0.005;
+    }
+    else if (numXs[0]==1){
+        var11 = 0.005;
+        var12 = 0.005;
+    }
+    if (numXs[1]==0){
+        mean21 = -10;
+        mean22 = -10;
+        var21 = 0.005;
+        var22 = 0.005;
+    }
+    else if (numXs[1]==1){
+        var21 = 0.005;
+        var22 = 0.005;
+    }
+    //Calculate probability for c1, c2
+    var p1 = numXs[0]/(numXs[0] + numXs[1]);
+    var p2 = numXs[1]/(numXs[0] + numXs[1]);
+    //Discretize feature space and calculate class
+    var pA = 0;
+    var pB = 0;
+    for (var i = 0; i < step; i++)
+        for (var j = 0; j < step; j++){
+            pA = ndensity(inc/2+j*inc,mean11,var11);
+            pA = pA * ndensity(inc/2+i*inc,mean12,var12);
+            pA = pA * p1;
+            pB = ndensity(inc/2+j*inc,mean21,var21);
+            pB = pB * ndensity(inc/2+i*inc,mean22,var22);
+            pB = pB * p2;
+            clss[i][j] = pA > pB ? -1 : 1;
+        }
+    classifyOn = true;
+    classifyType = 1;
+    showOn = true;
+    clearPrune();
+}
+
+function ndensity(x,m,v){
+    // used by NB classify
+    return 1/Math.sqrt(2*Math.PI*v) * Math.exp(-(Math.pow(x-m,2))/(2*v));
+}
+
+function SVMclassify(){
+    if (dataPoints.length==0) {alert("Click points then classify"); return;}
+    // learning rate (redefined below)
+    var a = 1;
+    // hyper parameter
+    var c = 2 * Math.pow(10,document.getElementById("Cparm").value);
+    // iterations
+    var it = 100000;
+    
+    // normalize the data features
+    var x1min=1, x1max=0, x2min=1, x2max=0;
+    var x1mean=0, x2mean=0;
+    for (var k = 0; k < dataPoints.length; k++){
+        if (dataPoints[k][0]<x1min) x1min = dataPoints[k][0];
+        if (dataPoints[k][1]<x2min) x2min = dataPoints[k][1];
+        if (dataPoints[k][0]>x1max) x1max = dataPoints[k][0];
+        if (dataPoints[k][1]>x2max) x2max = dataPoints[k][1];
+        x1mean += dataPoints[k][0];
+        x2mean += dataPoints[k][1];
+    }
+    var x1scale = 1/(x1max - x1min);
+    var x2scale = 1/(x2max - x2min);
+    // displayed picture won't look pretty if we scale x1 and x2 independently
+    // so below we use common scale but fyi, R's package e1071 does scale independently
+    x1scale<x2scale?x2scale=x1scale:x1scale=x2scale;
+    x1mean = x1mean / dataPoints.length;
+    x2mean = x2mean / dataPoints.length;
+    var dataPoints2 = [];
+    for (var k = 0; k < dataPoints.length; k++){
+        dataPoints2[k] = [];
+        dataPoints2[k][0] = (dataPoints[k][0] - x1mean) * x1scale;
+        dataPoints2[k][1] = (dataPoints[k][1] - x2mean) * x2scale;
+    }
+    
+    var y, f, t1, t2, t3;
+    var w1 = 0; w2 = 0; b = 0;
+    // perform iterations of 1st order gradient descent to minimize
+    // ||w||^2 + ||b||^2 + C * SUM_k (max{0 , 1 - y_k *( w1 * x1_k + w2 * x2_k + b)} )
+    for (var j = 0; j < it; j++){
+        a = 1/(j+1);
+        t1=0; t2=0; t3=0; sv=0;
+        for (var k = 0; k < dataPoints.length; k++){
+            dataPoints[k][2]==0?y=-1:y=1;
+            f = y*(w1*dataPoints2[k][0] + w2*dataPoints2[k][1] + b);
+            if (f<1){
+                sv++;
+                t1 += y*dataPoints2[k][0];
+                t2 += y*dataPoints2[k][1];
+                t3 += y;
+            }
+            else if (f<1.01) sv++;
+        }
+        // update [w1 w2 b] += negative gradient
+        w1 += a*(c*t1 - w1);
+        w2 += a*(c*t2 - w2);
+        b  += a*(c*t3 - b);
+    }
+    normw = Math.sqrt(Math.pow(w1,2) + Math.pow(w2,2));
+    unitw = [w1/normw,w2/normw];
+    unitb = -b / x1scale / normw + unitw[0] * x1mean + unitw[1] * x2mean;
+    normw = normw * x1scale;
+    // iterate through the x1-x2-plane and classify every point
+    for (var i = 0; i < step; i++)
+        for (var j = 0; j < step; j++){
+            var xd = [( inc/2+j*inc - x1mean) * x1scale, (inc/2+i*inc - x2mean) * x2scale];
+            // an abs = 2 implies inside margin
+            if ((w1*xd[0] + w2*xd[1] + b)>1) clss[i][j] = 1;
+            else if ((w1*xd[0] + w2*xd[1] + b)>0) clss[i][j] = 2;
+            else if ((w1*xd[0] + w2*xd[1] + b)<-1) clss[i][j] = -1;
+            else clss[i][j] = -2;
+        }
+    classifyOn = true;
+    classifyType = 3;
+    showOn = true;
+    clearPrune();
+}
+
+function updateC(x){
+    // user changed C hyper parameter
+    // used by SVM classify
+    var d = 2;
+    if (x>=1) d=0;
+    else if (x>=0) d=1;
+    else if (x<=-1) d=3;
+    document.getElementById("Cparm2").innerHTML = "C="+Math.pow(10,x).toFixed(d);
+    if (classifyOn && classifyType==3) SVMclassify();
+}
+
+function LOGclassify(){
+    if (dataPoints.length==0) {alert("Click points then classify"); return;}
+    // learning rate (ignored and redefined below)
+    var a = 0.05;
+    // iterations
+    var it = 100000;
+    var y = [], f = [];
+    var w1 = 0; w2 = 0; b = 0;
+    // perform iterations of 1st order gradient descent to minimize
+    for (var j = 0; j < it; j++){
+        for (var k = 0; k < dataPoints.length; k++){
+            dataPoints[k][2]==0?y[k]=-1:y[k]=1;
+            f[k] = 1/(1 + Math.exp(y[k]*(w1*dataPoints[k][0] + w2*dataPoints[k][1] + b)));
+        }
+        // update [w1 w2 b] += negative gradient
+        for (var k = 0; k < dataPoints.length; k++){
+            w1 += a*y[k]*f[k]*dataPoints[k][0] - a*w1/100000;
+            w2 += a*y[k]*f[k]*dataPoints[k][1] - a*w2/100000;
+            //w1 += a*y[k]*f[k]*dataPoints[k][0];
+            //w2 += a*y[k]*f[k]*dataPoints[k][1];
+            b  += a*y[k]*f[k];
+        }
+    }
+    normw = Math.sqrt(Math.pow(w1,2) + Math.pow(w2,2));
+    unitw = [w1/normw,w2/normw];
+    unitb = b/normw;
+    // iterate through the x1-x2-plane and classify every point
+    f = 0;
+    for (var i = 0; i < step; i++)
+        for (var j = 0; j < step; j++){
+            var xd = [ inc/2+j*inc , inc/2+i*inc ];
+            f = 1/(1+Math.exp(-w1*xd[0] - w2*xd[1] - b));
+            clss[i][j] = f - 0.5;
+        }
+    classifyOn = true;
+    classifyType = 5;
+    showOn = true;
+    clearPrune();
+}
+
+function showPointsAsText(){
+    // user clicked to show all data points as text
+    var text="Copy paste the following into a CSV file:<br><br>x1,x2,y<br>";
+    for (var k = 0; k < dataPoints.length; k++)
+        text+=dataPoints[k][0].toFixed(3)+","+dataPoints[k][1].toFixed(3)+","+dataPoints[k][2]+"<br>";
+    document.getElementById("debug").innerHTML=text+"<br>";
+    window.scrollTo(0, 1e6);
+}
+
+function KNNclassify(){
+    if (dataPoints.length==0) {alert("Click points then classify"); return;}
+    // iterate through the x1-x2-plane and classify every point
+    for (var i = 0; i < step; i++)
+        for (var j = 0; j < step; j++)
+            clss[i][j] = predict( inc/2+j*inc, inc/2+i*inc );
+    classifyOn = true;
+    classifyType = 4;
+    showOn = true;
+    predict(0.5,0.5);
+    clearPrune();
+}
+
+function predict(x1,x2){
+    // needs to be made more efficient for k=1 and k=2 case
+    // used by KNN classify
+    var distances = [];
+    for (var k = 0; k < dataPoints.length; k++){
+        distances[k] = [];
+        distances[k][0] = Math.pow(x1-dataPoints[k][0],2) + Math.pow(x2-dataPoints[k][1],2);
+        distances[k][1] = dataPoints[k][2];
+    }
+    distances.sort(function(a,b){
+        return a[0]-b[0];
+    });
+    var t = 0;
+    var k = 2 * document.getElementById("Kparm").value - 1;
+    if (k > dataPoints.length) k = dataPoints.length;
+    for (var j = 0; j < k; j++) t += distances[j][1];
+    if (t / k >= 0.5 ) return 1
+    else return -1;
+}
+
+function updateK(x){
+    // user changed k hyper parameter
+    // used by KNN classify
+    document.getElementById("Kparm2").innerHTML = "k="+(2*x-1);
+    if (classifyOn && classifyType==4) KNNclassify();
+}
+
+function TREEclassify(){
+    if (dataPoints.length==0) {alert("Click points then classify"); return;}
+    var bestx, besta, bestgini;
+    var b1L, b2L, b1R, b2R;
+    var n1L=[], n2L=[], n1R=[], n2R=[];
+    var a=[0,0], nL=[], nR=[], gini=[];
+    var x1s, x2s, idxs;
+    var text="", textB="";
+    
+    // place all points in node 1
+    for (var k = 0; k < dataPoints.length; k++) dataPoints[k][3]=1;
+    // reset rules
+    for (var i = 0; i < 32; i++) rules[i]=[1,0,0,0,-1,-1];
+    clickedNode = 0;
+    // loop through nodes of tree and find best splits based on gini index
+    // root is node 1 with children node 2 and node 3. Node 2 has children 4 and 5. Node 3 has children 6 and 7 etc.
+    // tree depth k has nodes 2^k to 2^(k+1)-1.
+    for (var i = 0; i < 32; i++){
+        textB="Processing node = "+(i+1)+"<br>";
+        // identify which points are in this node = i+1
+        b1L = 0; b2L = 0; x1s = []; x2s = []; idxs = [];
+        for (var k = 0; k < dataPoints.length; k++){
+            if (dataPoints[k][3]==i+1){
+                x1s.push(dataPoints[k][0]);
+                x2s.push(dataPoints[k][1]);
+                idxs.push(k);
+                if (dataPoints[k][2]==0) b1L++;
+                else b2L++;
+                textB+="("+dataPoints[k][0].toFixed(3)+", "+dataPoints[k][1].toFixed(3)+")-"+(dataPoints[k][2]==0?"R":"B")+"<br>";
+            }
+        }
+        // don't split node if n=0 or n=1 or all points same class or tree depth = 4
+        // modify this section to introduce new stoping criteria
+        if (idxs.length<=1 || b1L*b2L==0 || i>14){
+            if (idxs.length>=1) text += textB+"Leaf node!<br><br>";
+            if (i==0 && idxs.length==1)
+                rules[0] = [dataPoints[0][2]==1?1:-1,1,dataPoints[0][2]==1?0:1,dataPoints[0][2]==1?1:0,-1,-1];
+            if ((b1L*b2L==0 || i>14) && idxs.length!=0)
+                rules[i] = [b1L>b2L?-1:1,b1L+b2L,b1L,b2L,-1,-1];
+            continue;
+        }
+        // calculate break points to consider for x1 and x2
+        x1s.sort();
+        x2s.sort();
+        for (var k = 0; k < x1s.length-1; k++){
+            x1s[k] = (x1s[k+1] + x1s[k])/2;
+            x2s[k] = (x2s[k+1] + x2s[k])/2;
+        }
+        x1s.splice(-1,1);
+        x2s.splice(-1,1);
+        
+        textB+="Using breakpoints =";
+        for (var k = 0; k < x1s.length; k++) textB+= " ("+x1s[k].toFixed(3)+","+x2s[k].toFixed(3)+"),";
+        textB+="<br><br>";
+        text+=textB;
+
+        // consider all splits x1<a and x2<a for 0<a=break point<1. Evaluate based on gini index
+        bestx = 0; besta = 0; bestgini = 1e6;
+        b1L = 0; b2L = 0; b1R = 0; b2R = 0;
+        for (var j = 0; j < x1s.length; j++){
+            a[0] = x1s[j];
+            a[1] = x2s[j];
+            n1L = [0,0]; n2L = [0,0]; n1R = [0,0]; n2R = [0,0];
+            // count results of this potential split decision
+            for (var k = 0; k < dataPoints.length; k++)
+                if (dataPoints[k][3]==i+1){
+                    if (dataPoints[k][0]<a[0]){
+                        if (dataPoints[k][2]==0) n1L[0] += 1;
+                        else n2L[0] += 1;
+                    }
+                    else{
+                        if (dataPoints[k][2]==0) n1R[0] += 1;
+                        else n2R[0] += 1;
+                    }
+                    if (dataPoints[k][1]<a[1]){
+                        if (dataPoints[k][2]==0) n1L[1] += 1;
+                        else n2L[1] += 1;
+                    }
+                    else{
+                        if (dataPoints[k][2]==0) n1R[1] += 1;
+                        else n2R[1] += 1;
+                    }
+                }
+            nL[0] = n1L[0] + n2L[0];
+            nR[0] = n1R[0] + n2R[0];
+            nL[1] = n1L[1] + n2L[1];
+            nR[1] = n1R[1] + n2R[1];
+            // gini index formula is as follows:
+            // gini[0] = 2 * (nL[0]/n)*(n1L[0] / nL[0]) * (n2L[0] / nL[0]) + (nR[0]/n)*(n1R[0] / nR[0]) * (n2R[0] / nR[0]);
+            // gini[1] = 2 * (nL[1]/n)*(n1L[1] / nL[1]) * (n2L[1] / nL[1]) + (nR[1]/n)*(n1R[1] / nR[1]) * (n2R[1] / nR[1]);
+            // the classic formula simplifies to:
+            if (nL[0]!=0 && nR[0]!=0) gini[0] = n2L[0] * n1L[0] / nL[0] + n2R[0] * n1R[0] / nR[0];
+            if (nL[1]!=0 && nR[1]!=0) gini[1] = n2L[1] * n1L[1] / nL[1] + n2R[1] * n1R[1] / nR[1];
+            if (gini[0]<bestgini){ bestx = 0; besta = a[0]; bestgini = gini[0]; b1L=n1L[0]; b2L=n2L[0]; b1R=n1R[0]; b2R=n2R[0]; }
+            if (gini[1]<bestgini){ bestx = 1; besta = a[1]; bestgini = gini[1]; b1L=n1L[1]; b2L=n2L[1]; b1R=n1R[1]; b2R=n2R[1]; }
+        }
+        // relabel points as belonging to left child node or right child node
+        for (var k = 0; k < idxs.length; k++){
+            if (dataPoints[idxs[k]][bestx]<besta) dataPoints[idxs[k]][3] = 2*(i+1); //left child
+            else dataPoints[idxs[k]][3] = 2*(i+1)+1; //right child
+        }
+        // record split rule
+        // rules[node-1] = [node's class prediction, node's n, class1 ct, class2 ct, x split dimension, break point]
+        rules[i] = [b1L+b1R>b2L+b2R?-1:1,b1L+b1R+b2L+b2R,b1L+b1R,b2L+b2R,bestx,besta];
+    }
+    // display rule finding process
+    if (debug==true) document.getElementById("debug2").innerHTML = text+"<br>";
+
+    // predict class for all x1,x2 in unit square
+    calculatePredictions();
+    
+    // calculate complexity parameter for each internal node (used for prunning)
+    calculateComplexity();
+    
+    classifyOn = true;
+    classifyType = 2;
+    showOn = true;
+    clearPrune();
+}
+
+function calculatePredictions(){
+    // iterate through the x1-x2-plane and classify every point
+    // store the results in the variable clss[][]
+    // used by TREE classify
+    for (var i = 0; i < step; i++)
+        for (var j = 0; j < step; j++){
+            var xd = [inc/2+j*inc , inc/2+i*inc];
+            var index = 1;
+            while (index!=-1){
+                // if not leaf node
+                if (rules[index-1][4]!=-1){
+                    // find left child
+                    if (xd[rules[index-1][4]] < rules[index-1][5]) index = 2*index;
+                    // find right child
+                    else index = 2*index+1;
+                }
+                else {
+                    clss[i][j] = rules[index-1][0];
+                    index = -1;
+                }
+            }
+        }
+}
+
+function calculateComplexity(){
+    // used by TREE classify
+    var n = rules[0][1];
+    var mincp, c=1, done = false;
+    for (var i = 0; i < 32; i++) {
+        rules2[i] = [];
+        for (var j = 0; j < 6; j++) rules2[i][j] = rules[i][j];
+        cp2[i] = 2;
+    }
+    var R1 = Rerror(1,true)/n;
+    text = "";
+    
+    while (!done){
+        done = true;
+        mincp = 2;
+        for (var i = 0; i < 32; i++) cp[i] = 2;
+        text+="<br>Pass "+c+"<br>";
+        for (var i = 0; i < 32; i++){
+            if (rules2[i][4]!=-1){
+                cp[i] = (Rerror(i+1,true) - Rerror(i+1,false))/n/(Rsize(i+1)-1);
+                if (cp[i] < mincp) mincp = cp[i];
+                text+="node "+(i+1)+", cp = "+(cp[i]/R1).toFixed(3)+"<br>";
+                done = false;
+            }
+        }
+        if (!done)
+        for (var i = 0; i < 32; i++)
+            if (cp[i]==mincp){
+                Rprune(i+1,rules2);
+                if (i==0) done = true;
+                cp2[i] = cp[i]/R1;
+                clearDuplicate(i+1,mincp);
+            }
+        c++;
+    }
+    text+="<br>Results:<br>";
+    for (var i = 0; i < 32; i++){
+        if (cp2[i]<2) text+="node "+(i+1)+" = "+(cp2[i]).toFixed(3)+"<br>";
+    }
+    // display complexity finding process
+    if (debug2) document.getElementById("debug2").innerHTML = text+"<br>";
+}
+
+function clearDuplicate(x,mincp){
+    // used by TREE classify
+    if (cp[x-1]==mincp) cp[x-1] = 2;
+    if (rules[x-1][4]==-1) return;
+    clearDuplicate(2*x,mincp);
+    clearDuplicate(2*x+1,mincp);
+}
+
+function Rerror(x,y){
+    // if y=false, returns the number of misclassified points from branch x
+    // if y=true, returns misclassified points from node x only
+    // both use rules2
+    // used by TREE classify
+    var p = 0;
+    if (rules2[x-1][4]==-1 || y==true){
+        rules2[x-1][0]==1?p=0:p=1;
+        return (rules2[x-1][2+p]);
+    }
+    else return Rerror(2*x,false) + Rerror(2*x+1,false);
+}
+
+function Rsize(x){
+    // returns the number of leaf nodes on branch x
+    // uses rules2
+    // used by TREE classify
+    if (rules2[x-1][4]==-1) return 1;
+    else return Rsize(2*x)+Rsize(2*x+1);
+}
+
+function Rprune(x,r){
+    // removes all descendants of node x from rules r
+    // used by TREE classify
+    var n = r[x-1][1];
+    Rprune2(x,r);
+    r[x-1][1] = n;
+}
+function Rprune2(x,r){
+    // used by Rprune
+    // used by TREE classify
+    r[x-1][1] = 0;
+    if (r[x-1][4]==-1) return;
+    else{
+        r[x-1][4] = -1;
+        Rprune2(2*x,r);
+        Rprune2(2*x+1,r);
+    }
+}
+
+function prune(){
+    // user clicked prune button to remove a branch
+    // used by TREE classify
+    if (classifyOn == false){
+        alert("Classify first.");
+        return;
+    }
+    if (clickedNode==0){
+        alert("Click a node in the tree diagram first.");
+        return;
+    }
+    if (rules[clickedNode-1][4]==-1){
+        alert("Click an internal node first.");
+        return;
+    }
+    Rprune(clickedNode,rules);
+    calculatePredictions();
+    calculateComplexity();
+    showOn = true;
+}
+
+function clearPrune(){
+    clickedNode = 0;
+    Xclick = -1;
+    Yclick = -1;
+    document.getElementById("pbutton").style.background = "#EEEEEE";
+}
+
+function reset() {
+    // user clicked reset button
+	dataPoints = [];
+    classifyOn = false;
+    classifyType = 0;
+    showOn = true;
+    document.getElementById("debug").innerHTML = "";
+    // below for TREE classify
+    for (var i = 0; i < 32; i++) rules[i]=[1,0,0,0,-1,-1];
+    clearPrune();
+}
+
+function hide(){
+    classifyOn=false;
+    showOn=true;
+    document.getElementById("pbutton").style.background = "#EEEEEE";
+}
+
+function myDown(e) {
+    // user clicked inside canvas1 to place point
+    var x = (e.pageX - canvas.offsetLeft)/WIDTH;
+    var y = 1-(e.pageY - canvas.offsetTop)/HEIGHT;
+    var z = e.button;
+    if (z>0 || commandkey || shiftkey) z=1;
+    if (reverse && z==0) z = 1;
+    else if (reverse && z==1) z = 0;
+    if (dkey) {
+        pop(x,y);
+        if (dataPoints.length == 0){
+            reset();
+            return;
+        }
+    }
+    else dataPoints.push([x, y, z, 1]);
+    if (classifyOn){
+        if (classifyType==5) LOGclassify();
+        else if (classifyType==4) KNNclassify();
+        else if (classifyType==3) SVMclassify();
+        else if (classifyType==2) TREEclassify();
+        else if (classifyType==1) NBclassify();
+        else classifyOn = false;
+    }
+    showOn = true;
+    document.getElementById("debug").innerHTML = "";
+}
+
+function myDown2(e) {
+    // user clicked inside canvas2 on tree diagram
+    // used by TREE classify
+    var x = (e.pageX - canvas2.offsetLeft);
+    var y = (e.pageY - canvas2.offsetTop) - 135;
+    // for KNN
+    Xclick = x;
+    Yclick = y + 135;
+    if (example){
+        var h = 0;
+        if (x>30 && x<130 && Yclick>125+h && Yclick<465+h){
+            if (Yclick<235+h) load("1000");
+            else if (Yclick<355+h) load("1001");
+            else load("1002");
+        }
+    }
+    else if (isMobile){
+        var h = 0;
+        if (x>30 && x<130 && Yclick>125+h && Yclick<250+h){
+            if (Yclick<185+h) {reverse = false;}
+            else {reverse = true;}
+        }
+    }
+    // calculate which node was clicked from x,y
+    if (classifyType == 2){
+        var r = Math.floor(y/70);
+        var w = WIDTH2 / Math.pow(2,r);
+        var c = Math.floor(x/w);
+        var node = Math.pow(2,r)+c;
+        if (node>=1 && node<=32 && clickedNode!=node && rules[node-1][1]!=0) clickedNode = node;
+        else clickedNode = 0;
+        // calculate corresponding region to clicked node
+        if (clickedNode!=0){
+            xA=WIDTH; xB=0; yA=HEIGHT; yB=0;
+            for (var i = 0; i < step; i++)
+                for (var j = 0; j < step; j++){
+                    var xd = [inc/2+j*inc , inc/2+i*inc];
+                    var index = 1;
+                    while (index!=-1){
+                        if (index==clickedNode){
+                            if (xd[0]<xA) xA = xd[0];
+                            if (xd[0]>xB) xB = xd[0];
+                            if (xd[1]<yA) yA = xd[1];
+                            if (xd[1]>yB) yB = xd[1];
+                        }
+                        if (rules[index-1][4]!=-1){
+                            if (xd[rules[index-1][4]] < rules[index-1][5]) index = 2*index;
+                            else index = 2*index+1;
+                        }
+                        else index = -1;
+                    }
+                }
+            xA = xA * WIDTH;
+            xB = xB * WIDTH;
+            yA = (1-yA) * HEIGHT;
+            yB = (1-yB) * HEIGHT;
+        }
+    }
+    showOn = true;
+}
+
+function pop(x,y){
+    // remove a data point
+    var temp = 0;
+    var min = 1.5;
+    var index = -1;
+	for (var j = 0; j < dataPoints.length; j++){
+        temp = Math.pow(x-dataPoints[j][0],2)+Math.pow(y-dataPoints[j][1],2);
+        if (temp<min){
+            min = temp;
+            index = j;
+        }
+    }
+    if (index!=-1) dataPoints.splice(index,1);
+    document.getElementById("debug").innerHTML = "";
+}
+
+function keyDown(e){
+    var key = e.keyCode;
+    if (key==91 || key==93 || key==224) commandkey = true;
+    else if (key==16) shiftkey = true;
+    else if (key==68) dkey = true;
+}
+
+function keyUp(e){
+    dkey = false;
+    commandkey = false;
+    shiftkey = false;
+}
+
+function load(str){
+    AJAX("machinelearning/load.php","n="+str,false,updatePoints);
+}
+
+function updatePoints(str){
+    dataPoints = [];
+    var num;
+    var lines = str.split("<br>");
+    if (lines.length<=1) {
+        alert("Error loading.");
+        return;
+    }
+    for (var i = 1; i < lines.length-1; i++){
+        num = lines[i].split(",");
+        dataPoints.push([Number(num[0]), Number(num[1]), Number(num[2])]);
+    }
+    showOn = true;
+}
+
+function AJAX(url,data,get,callback){
+    var page_request = window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject('Microsoft.XMLHTTP');
+    page_request.onreadystatechange=function(){
+        if (page_request.readyState==4 && page_request.status==200) callback(page_request.responseText);
+    };
+    if (get) page_request.open('GET', url+"?"+data);
+    else page_request.open('POST', url);
+    page_request.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+    page_request.send(data);
+    return page_request;
+}
+
+var isMobile = false; //initiate as false
+// device detection
+if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|ipad|iris|kindle|Android|Silk|lge |maemo|midp|mmp|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows (ce|phone)|xda|xiino/i.test(navigator.userAgent) 
+    || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(navigator.userAgent.substr(0,4))) { 
+    isMobile = true;
+}
+
+</script>
+</body></html>
